@@ -1,0 +1,69 @@
+Delhaize Wine Sommelier - How It Works and How to Use It
+
+0. What Powers the Solution
+
+   - Next.js 13 with React App Router (Server & Client Components)
+   - Tailwind CSS for utility-first styling
+   - OpenAI API (GPT-4) via the `ai` and `@ai-sdk/openai` packages for intelligent recommendations
+   - JSON-based multilingual wine catalog and a TypeScript/Node.js backend
+
+1. How the Solution Works
+   a. Web Application
+      - Built with Next.js 13 and React.
+      - Uses Tailwind CSS for styling.
+   b. Data Source
+      - Wine catalog stored as JSON files (EN, FR, NL) in the data/ folder.
+      - Each entry includes name, price, type, country, food pairing, etc.
+   c. API Endpoints
+      - GET /api/wines?lang={en|fr|nl}: returns the wine list for the chosen language.
+      - POST /api/wine-advice: accepts a user message, language, available wines, and history.
+         • Filters wines by price, exclusions, and keywords.
+         • Builds a system prompt with a sample of the wine data.
+         • Calls the OpenAI API to generate a recommendation message.
+         • Parses the AI response to extract specific wine IDs or names.
+         • Returns both the AI text and a list of recommended wines.
+   d. Frontend Components
+      - wine-chatbot: chat widget for asking questions.
+      - wine-card: displays each wine’s details and an “Add to Cart” button.
+      - cart-indicator: shows the number of items in the cart.
+      - compare-popup and wine-popup: show extra details or side-by-side views.
+   e. Smart Cart
+      - Managed with a custom React hook (use-cart).
+      - Persists cart items in localStorage.
+      - Provides “Add to Cart” and “View Cart” features.
+   f. Browser Extension (Optional)
+      - Injects the chat widget into Delhaize’s official site using content.js.
+      - Installed via standard Chrome/Firefox extension manifest.
+
+3. Challenges
+   - Prompt size & token limits: balancing the dataset sample with model constraints.
+   - Parsing AI responses: reliably extracting IDs or names across varied formats.
+   - Multi-language nuance: handling idioms, typos, and translation consistency.
+
+4. Next Steps
+   - Enhance fallback logic with more advanced heuristics and caching.
+   - Add user profiles to track preferences and personalized history.
+   - Integrate analytics to learn from real interactions and improve AI prompts.
+
+2. How People Can Use It
+   a. Setup
+      1. Clone the repository: git clone <repo-url>
+      2. Install dependencies: npm install
+      3. Copy environment file: cp .env.example .env.local
+      4. Add your OpenAI API key to .env.local (OPENAI_API_KEY).
+   b. Run Locally
+      1. Start the development server: npm run dev
+      2. Open a browser and go to http://localhost:3000
+   c. Using the App
+      1. Click the wine/chat icon in the bottom corner to open the chat.
+      2. Select your language (English, Français, Nederlands).
+      3. Type a question or request (e.g., “Red wines under 20 for steak”).
+      4. Read the AI’s response and browse the 7–8 recommended wines.
+      5. Click “Add to Cart” on any wine to save it.
+      6. Click the cart icon to view or modify your list.
+      7. Use provided links to shop directly on Delhaize.
+   d. Optional: Browser Extension
+      1. Load the wine-widget-extension folder as an unpacked extension.
+      2. Visit Delhaize’s website and open the extension chat for recommendations.
+
+Enjoy finding the perfect wine for any occasion!
