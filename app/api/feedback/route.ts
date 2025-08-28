@@ -40,7 +40,22 @@ export async function POST(request: Request) {
     }
     arr.push(data)
     // Write back
+    // Write updated feedback records
     await fs.writeFile(filePath, JSON.stringify(arr, null, 2), 'utf-8')
+    // Also update aggregated feedback counts
+    try {
+      const counts: Record<string, { likes: number; dislikes: number }> = {}
+      arr.forEach(({ wineId, feedback }) => {
+        if (!counts[wineId]) counts[wineId] = { likes: 0, dislikes: 0 }
+        if (feedback === 'like') counts[wineId].likes++
+        else if (feedback === 'dislike') counts[wineId].dislikes++
+      })
+      const aggregated = Object.entries(counts).map(([wineId, { likes, dislikes }]) => ({ wineId, likes, dislikes }))
+      const aggPath = path.join(process.cwd(), 'data', 'feedback_aggregated.json')
+      await fs.writeFile(aggPath, JSON.stringify(aggregated, null, 2), 'utf-8')
+    } catch (e) {
+      console.error('Failed to aggregate feedback:', e)
+    }
     return NextResponse.json({ ok: true })
   } catch (err) {
     console.error('Feedback POST error:', err)
