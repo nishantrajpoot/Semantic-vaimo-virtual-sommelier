@@ -27,6 +27,8 @@ const wineData = {
 }
 
 export function WineChatbot({ isOpen, onClose, onLanguageChange }: WineChatbotProps) {
+  // Unique ID generator for messages
+  const generateId = () => crypto.randomUUID()
   const [language, setLanguage] = useState<Language>("fr")
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState("")
@@ -65,7 +67,7 @@ export function WineChatbot({ isOpen, onClose, onLanguageChange }: WineChatbotPr
     if (nextBatch.length === 0) return
     // Render next batch of wine cards
     const recMsg: ChatMessage = {
-      id: (Date.now() + 1).toString(),
+      id: generateId(),
       role: "assistant",
       content: "WINE_RECOMMENDATIONS",
       timestamp: new Date(),
@@ -76,9 +78,9 @@ export function WineChatbot({ isOpen, onClose, onLanguageChange }: WineChatbotPr
     // Update shown IDs
     setShownIds((prev) => [...prev, ...nextBatch.map((w) => w.id)])
     // Add SHOW_MORE if more remain
-    if (start + nextBatch.length < lastRecs.length) {
-      const showMoreMsg: ChatMessage = {
-        id: (Date.now() + 2).toString(),
+      if (start + nextBatch.length < lastRecs.length) {
+        const showMoreMsg: ChatMessage = {
+          id: generateId(),
         role: "assistant",
         content: "SHOW_MORE",
         timestamp: new Date(),
@@ -245,7 +247,7 @@ export function WineChatbot({ isOpen, onClose, onLanguageChange }: WineChatbotPr
     suggestionsDB.addQuery(userQuery, language)
 
     const userMessage: ChatMessage = {
-      id: Date.now().toString(),
+      id: generateId(),
       role: "user",
       content: userQuery,
       timestamp: new Date(),
@@ -300,7 +302,7 @@ export function WineChatbot({ isOpen, onClose, onLanguageChange }: WineChatbotPr
       // Store comments aligned with recs
       setRecComments(commentLines)
       const assistantMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
+        id: generateId(),
         role: "assistant",
         content: cleanText,
         timestamp: new Date(),
@@ -317,7 +319,7 @@ export function WineChatbot({ isOpen, onClose, onLanguageChange }: WineChatbotPr
           `${idx + 1}. ${stepNames[t.step] || t.step}: ${(t.duration / 1000).toFixed(2)}s`
         )
         const timingMessage: ChatMessage = {
-          id: (Date.now() + 2).toString(),
+          id: generateId(),
           role: 'assistant',
           content: `TIMINGS:\n${lines.join('\n')}`,
           timestamp: new Date(),
@@ -335,8 +337,8 @@ export function WineChatbot({ isOpen, onClose, onLanguageChange }: WineChatbotPr
         const allPairs = recs.flatMap((w) => w.food_pairing || [])
         const uniquePairs = Array.from(new Set(allPairs)).slice(0, 4)
         if (uniquePairs.length > 0) {
-          const pairingMessage: ChatMessage = {
-            id: (Date.now() + 2).toString(),
+        const pairingMessage: ChatMessage = {
+            id: generateId(),
             role: "assistant",
             content: `FOOD_SUGGESTIONS:${uniquePairs.join("|")}`,
             timestamp: new Date(),
@@ -347,7 +349,7 @@ export function WineChatbot({ isOpen, onClose, onLanguageChange }: WineChatbotPr
         // Show first 4 recommendation cards (from padded full list)
         const initialRecs = fullRecs.slice(0, 4)
         const recommendationsMessage: ChatMessage = {
-          id: (Date.now() + 3).toString(),
+          id: generateId(),
           role: "assistant",
           content: "WINE_RECOMMENDATIONS",
           timestamp: new Date(),
@@ -360,7 +362,7 @@ export function WineChatbot({ isOpen, onClose, onLanguageChange }: WineChatbotPr
         // Add "Show more" button if more available in fullRec list
         if (fullRecs.length > initialRecs.length) {
           const showMoreMessage: ChatMessage = {
-            id: (Date.now() + 4).toString(),
+            id: generateId(),
             role: "assistant",
             content: "SHOW_MORE",
             timestamp: new Date(),
@@ -380,7 +382,7 @@ export function WineChatbot({ isOpen, onClose, onLanguageChange }: WineChatbotPr
     } catch (error) {
       console.error("Error getting wine advice:", error)
       const errorMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
+        id: generateId(),
         role: "assistant",
         content: "Sorry, I encountered an error. Please try again.",
         timestamp: new Date(),
@@ -399,7 +401,7 @@ export function WineChatbot({ isOpen, onClose, onLanguageChange }: WineChatbotPr
         <div className="space-y-3">
           <h4 className="font-bold text-gray-900">{getTranslation(language, "recommendations")}</h4>
           {recs.map((wine, idx) => (
-            <div key={wine.id} className="space-y-1">
+            <div key={`${wine.id}-${offset + idx}`} className="space-y-1">
               <div className="text-xs font-semibold text-gray-700">{offset + idx + 1}.</div>
               <WineCard wine={wine} language={language} />
             </div>

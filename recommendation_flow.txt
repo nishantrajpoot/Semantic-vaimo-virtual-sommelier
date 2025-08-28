@@ -1,0 +1,56 @@
+Here’s the end-to-end flow of how a user’s “recommend me wines” query turns into the set of wine cards you see:
+
+1. User submits a query
+   - You type something (e.g. “Top 3 wines that go well with aperitif”) and hit enter.
+   - handleSubmit fires:
+     • Hides the suggestion buttons
+     • Logs your query in suggestionsDB
+     • Creates a user-message object and appends it to messages
+     • Clears the input, resets pagination state (lastQuery, shownIds), and sets isLoading=true.
+
+2. Client calls the AI API
+   - POST to /api/wine-advice with:
+     • message: your query
+     • language: selected language
+     • wines: the full local wine database for that language
+     • history: the chat history so far
+     • excludeIds: any already-shown wine IDs (for pagination)
+
+3. Server does the “sommelier” work
+   - Semantic search over the wine DB to find the top candidates
+   - LLM prompt that summarizes/re-ranks them and produces:
+     • message: natural-language response
+     • recommendations: list of recommended wine objects
+   - Parser returns { message, recommendations, timings? }
+
+4. Client receives and cleans the AI response
+   - Strip out URLs and bold-markdown
+   - Remove “Here are X wines:” boilerplate
+   - Fallback to a default header if the message is empty
+   - Extract numbered comment lines into recComments
+
+5. Show performance timings (optional)
+   - If provided, append a TIMINGS message showing step durations
+
+6. Derive food-pairing suggestions
+   - Collect all wine.food_pairing arrays from recommendations
+   - Dedupe and slice to up to 4 items
+   - Push a ChatMessage with content FOOD_SUGGESTIONS:pair1|pair2|…
+
+7. Push the wine cards
+   - Store full recommendations in lastRecs
+   - Slice the first 4 as initialRecs
+   - Append a WINE_RECOMMENDATIONS message with those 4 and startIndex=0
+   - Record shownIds for pagination
+   - If more than 4, also append a SHOW_MORE message
+
+8. Rendering in the UI
+   - messages.map(...) calls renderMessage(message)
+   - WINE_RECOMMENDATIONS: renders a header and WineCard entries
+   - SHOW_MORE: renders “Show more” and “Compare” buttons
+
+9. Pagination (“Show more”)
+   - handleShowMore() slices the next batch, appends another WINE_RECOMMENDATIONS, updates shownIds, re-adds SHOW_MORE if needed
+
+10. Compare-popup
+   - Clicking “Compare” opens ComparePopup with full lastRecs and recComments

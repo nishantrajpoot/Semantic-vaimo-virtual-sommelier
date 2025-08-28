@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "screenshot": "node scripts/screenshot-delhaize.js"
+    "screenshot": "node scripts/screenshot-delhaize.js",
+    "aggregate-feedback": "node scripts/aggregate-feedback.js"
   },
   "dependencies": {
     "@ai-sdk/openai": "^0.0.24",

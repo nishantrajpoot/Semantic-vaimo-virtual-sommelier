@@ -27,8 +27,7 @@ export async function POST(request: NextRequest) {
         url.searchParams.set('lang', language)
         url.searchParams.set('q', message)
         const resp = await fetch(url.toString(), { method: 'GET' })
-        if (resp.ok) {
-          console.log('response-', resp)
+        if (resp.ok) {         
           candidates = await resp.json()
         } else {
           console.warn('Semantic search failed:', resp.status)
@@ -171,7 +170,6 @@ function getSimpleFallback(message: string, wines: Wine[]): Wine[] {
 function extractRecommendationsFromResponse(response: string, wines: Wine[]): Wine[] {
   // 1) Try to parse explicit ID list
   const idSection = response.match(/RECOMMENDED_IDS:?\s*\[([^\]]+)\]/i)
-  console.log('idSection-', idSection)
   /*
   if (idSection) {    
     const ids = idSection[1]
@@ -190,7 +188,6 @@ function extractRecommendationsFromResponse(response: string, wines: Wine[]): Wi
       .map((s) => s.replace(/"/g, "").trim())
       .filter(Boolean)
 
-      console.log('ids-', ids)
       // Create a quick ID → wine lookup map
     const wineMap = new Map(wines.map(w => [w.id, w]))
 
@@ -198,7 +195,6 @@ function extractRecommendationsFromResponse(response: string, wines: Wine[]): Wi
     const foundOrdered = ids
       .map(id => wineMap.get(id))
       .filter((wine): wine is Wine => Boolean(wine)) // remove undefined
-      console.log('foundOrdered-', foundOrdered)
     if (foundOrdered.length > 0) return foundOrdered.slice(0, 8)
   }
   // 2) Fallback to name-based matching if no IDs found

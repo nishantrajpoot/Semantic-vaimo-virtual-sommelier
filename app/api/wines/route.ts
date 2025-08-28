@@ -3,6 +3,7 @@ import data_EN from '@/data/data_EN.json'
 import syntheticWines from '@/data/synthetic_wine_database_10000.json'
 import data_NL from '@/data/data_NL.json'
 import type { Wine, Language } from '@/types/wine'
+import feedbackData from '@/data/feedback_aggregated.json'
 
 // In-memory vector index cache per language
 type EmbeddingIndex = { wines: Wine[]; embeddings: number[][] }
@@ -119,10 +120,37 @@ export async function GET(request: Request) {
       // Sort by similarity
       scored.sort((a, b) => b.score - a.score)
 
-      // Return top 15 wines for prompt context (with score if desired)
-      wines = scored.slice(0, 15).map(item => ({
+      // First-stage: take top 50 by similarity
+      const top50 = scored.slice(0, 50)
+      // Build feedback map and compute max diff for normalization
+      const fbMap = new Map<string, { likes: number; dislikes: number }>()
+      let maxDiff = 0
+      feedbackData.forEach(f => {
+        fbMap.set(f.wineId, { likes: f.likes, dislikes: f.dislikes })
+        const diff = Math.abs(f.likes - f.dislikes)
+        if (diff > maxDiff) maxDiff = diff
+      })
+      // Rerank with feedback signals: finalScore = alpha*sim + beta*normFb
+      const alpha = parseFloat(process.env.RE_RANK_ALPHA || '0.8')
+      const beta = parseFloat(process.env.RE_RANK_BETA || '0.2')
+      const reranked = top50.map(item => {
+        const fb = fbMap.get(item.wine.id) || { likes: 0, dislikes: 0 }
+        const fbScore = fb.likes - fb.dislikes
+        const normFb = maxDiff > 0 ? fbScore / maxDiff : 0
+        return {
+          wine: item.wine,
+          similarity: item.score,
+          feedbackScore: fbScore,
+          finalScore: alpha * item.score + beta * normFb,
+        }
+      })
+      reranked.sort((a, b) => b.finalScore - a.finalScore)
+      // Return top 15 after reranking
+      wines = reranked.slice(0, 15).map(item => ({
         ...item.wine,
-        similarity: item.score, // comment this line if you don’t want scores
+        similarity: item.similarity,
+        feedbackScore: item.feedbackScore,
+        finalScore: item.finalScore,
       }))
     } else {
       // Keyword fallback
