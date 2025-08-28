@@ -50,3 +50,5 @@ Thumbs.db
 
 #API
 .env.local
+.Identifier
+.next/
