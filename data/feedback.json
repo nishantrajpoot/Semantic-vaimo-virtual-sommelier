@@ -148,5 +148,41 @@
     "wineId": "525c7038-4ca8-4f55-bf2a-6106ee6e4221",
     "feedback": "dislike",
     "timestamp": "2025-08-27T12:34:27.710Z"
+  },
+  {
+    "userId": "7e804562-d694-4054-9ba0-9105147d652b",
+    "wineId": "653bdfe9-1efd-465e-a6c9-56f760dfc747",
+    "feedback": "like",
+    "timestamp": "2025-08-29T06:44:14.818Z"
+  },
+  {
+    "userId": "7e804562-d694-4054-9ba0-9105147d652b",
+    "wineId": "9eb96b9a-b474-456c-8de2-5fe9639aa132",
+    "feedback": "like",
+    "timestamp": "2025-08-29T06:44:16.421Z"
+  },
+  {
+    "userId": "7e804562-d694-4054-9ba0-9105147d652b",
+    "wineId": "d5c7a444-4d70-4b47-a13a-0a8103c94fef",
+    "feedback": "like",
+    "timestamp": "2025-08-29T06:44:17.854Z"
+  },
+  {
+    "userId": "7e804562-d694-4054-9ba0-9105147d652b",
+    "wineId": "706c8b18-4d4c-44e7-aa3d-fcf8b7f4c06c",
+    "feedback": "dislike",
+    "timestamp": "2025-08-29T06:44:18.529Z"
+  },
+  {
+    "userId": "7e804562-d694-4054-9ba0-9105147d652b",
+    "wineId": "02dea05e-77f2-4277-9ea0-3611868c7278",
+    "feedback": "dislike",
+    "timestamp": "2025-08-29T06:44:22.105Z"
+  },
+  {
+    "userId": "7e804562-d694-4054-9ba0-9105147d652b",
+    "wineId": "dba8d343-3d19-42bb-8ca4-443fe80dee71",
+    "feedback": "dislike",
+    "timestamp": "2025-08-29T06:44:22.946Z"
   }
 ]

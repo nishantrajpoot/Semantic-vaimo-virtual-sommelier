@@ -1,61 +1,58 @@
 import { NextResponse } from 'next/server'
-import { promises as fs } from 'fs'
-import path from 'path'
+import { neon } from '@neondatabase/serverless'
 
-interface FeedbackRecord {
-  userId: string
-  wineId: string | number
-  feedback: 'like' | 'dislike'
-  timestamp: string
-}
+const sql = neon(process.env.NEON_DATABASE_URL!)
 
-// GET /api/feedback - return all feedback records
-export async function GET() {
+// GET /api/feedback           → returns raw feedback
+// GET /api/feedback?type=agg  → returns aggregated feedback
+export async function GET(req: Request) {
   try {
-    const filePath = path.join(process.cwd(), 'data', 'feedback.json')
-    const content = await fs.readFile(filePath, 'utf-8')
-    const arr = JSON.parse(content)
-    return NextResponse.json(arr)
+    const { searchParams } = new URL(req.url)
+    const type = searchParams.get('type')
+
+    if (type === 'agg') {
+      // Aggregated feedback (computed with SQL)
+      const rows = await sql`
+        SELECT wine_id as "wineId",
+               COUNT(*) FILTER (WHERE feedback = 'like') AS likes,
+               COUNT(*) FILTER (WHERE feedback = 'dislike') AS dislikes
+        FROM feedback
+        GROUP BY wine_id
+        ORDER BY wine_id
+      `
+      return NextResponse.json(rows)
+    } else {
+      // Raw feedback records
+      const rows = await sql`
+        SELECT user_id as "userId",
+               wine_id as "wineId",
+               feedback,
+               timestamp
+        FROM feedback
+        ORDER BY timestamp DESC
+      `
+      return NextResponse.json(rows)
+    }
   } catch (err) {
     console.error('Feedback GET error:', err)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 }
-// POST /api/feedback
+
+// POST /api/feedback → insert new record
 export async function POST(request: Request) {
   try {
-    const data: FeedbackRecord = await request.json()
-    // Basic validation
+    const data = await request.json()
+
     if (!data.userId || !data.wineId || !data.feedback) {
       return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
     }
-    const filePath = path.join(process.cwd(), 'data', 'feedback.json')
-    // Read existing feedback
-    let arr: FeedbackRecord[] = []
-    try {
-      const content = await fs.readFile(filePath, 'utf-8')
-      arr = JSON.parse(content) as FeedbackRecord[]
-    } catch (e) {
-      // ignore, assume new file
-    }
-    arr.push(data)
-    // Write back
-    // Write updated feedback records
-    await fs.writeFile(filePath, JSON.stringify(arr, null, 2), 'utf-8')
-    // Also update aggregated feedback counts
-    try {
-      const counts: Record<string, { likes: number; dislikes: number }> = {}
-      arr.forEach(({ wineId, feedback }) => {
-        if (!counts[wineId]) counts[wineId] = { likes: 0, dislikes: 0 }
-        if (feedback === 'like') counts[wineId].likes++
-        else if (feedback === 'dislike') counts[wineId].dislikes++
-      })
-      const aggregated = Object.entries(counts).map(([wineId, { likes, dislikes }]) => ({ wineId, likes, dislikes }))
-      const aggPath = path.join(process.cwd(), 'data', 'feedback_aggregated.json')
-      await fs.writeFile(aggPath, JSON.stringify(aggregated, null, 2), 'utf-8')
-    } catch (e) {
-      console.error('Failed to aggregate feedback:', e)
-    }
+
+    await sql`
+      INSERT INTO feedback (user_id, wine_id, feedback, timestamp)
+      VALUES (${data.userId}, ${data.wineId}::text, ${data.feedback}, NOW())
+    `
+
     return NextResponse.json({ ok: true })
   } catch (err) {
     console.error('Feedback POST error:', err)

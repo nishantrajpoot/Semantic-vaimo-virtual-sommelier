@@ -1,5 +1,6 @@
 {
   "/page": "app/page.js",
   "/api/wine-advice/route": "app/api/wine-advice/route.js",
-  "/api/wines/route": "app/api/wines/route.js"
+  "/api/wines/route": "app/api/wines/route.js",
+  "/api/feedback/route": "app/api/feedback/route.js"
 }

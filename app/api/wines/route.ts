@@ -3,7 +3,9 @@ import data_EN from '@/data/data_EN.json'
 import syntheticWines from '@/data/synthetic_wine_database_10000.json'
 import data_NL from '@/data/data_NL.json'
 import type { Wine, Language } from '@/types/wine'
-import feedbackData from '@/data/feedback_aggregated.json'
+// Aggregated feedback will be loaded at runtime from the database
+import { neon } from '@neondatabase/serverless'
+const sql = neon(process.env.NEON_DATABASE_URL!)
 
 // In-memory vector index cache per language
 type EmbeddingIndex = { wines: Wine[]; embeddings: number[][] }
@@ -122,12 +124,21 @@ export async function GET(request: Request) {
 
       // First-stage: take top 50 by similarity
       const top50 = scored.slice(0, 50)
-      // Build feedback map and compute max diff for normalization
+      // Load aggregated feedback from database and build map
+      const fbRows = await sql`
+        SELECT wine_id AS "wineId",
+               COUNT(*) FILTER (WHERE feedback = 'like') AS likes,
+               COUNT(*) FILTER (WHERE feedback = 'dislike') AS dislikes
+        FROM feedback
+        GROUP BY wine_id
+      `
       const fbMap = new Map<string, { likes: number; dislikes: number }>()
       let maxDiff = 0
-      feedbackData.forEach(f => {
-        fbMap.set(f.wineId, { likes: f.likes, dislikes: f.dislikes })
-        const diff = Math.abs(f.likes - f.dislikes)
+      fbRows.forEach(f => {
+        const likes = Number(f.likes)
+        const dislikes = Number(f.dislikes)
+        fbMap.set(f.wineId, { likes, dislikes })
+        const diff = Math.abs(likes - dislikes)
         if (diff > maxDiff) maxDiff = diff
       })
       // Rerank with feedback signals: finalScore = alpha*sim + beta*normFb
