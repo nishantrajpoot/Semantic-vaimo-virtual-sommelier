@@ -1,0 +1,29 @@
+Explanation of scoring system combining semantic similarity and user feedback:
+
+1. Compute similarity:
+   • Embed the user query and each wine description
+   • Compute cosine similarity between the two vectors → a value in [0…1]
+
+2. Compute feedback score:
+   • fbScore = likes − dislikes
+   • maxDiff = max(|likes − dislikes|) across all wines
+   • normFb = fbScore / maxDiff (normalized to [−1…1])
+
+3. Weighted sum (reranking):
+   • finalScore = α × similarity + β × normFb
+   • α (similarity weight), β (feedback weight), e.g. α=0.8, β=0.2
+
+Example:
+  For Chardonnay:
+    similarity = 0.75
+    likes = 30, dislikes = 10  → fbScore = 20
+    maxDiff = 40               → normFb = 20 / 40 = 0.5
+    finalScore = 0.8×0.75 + 0.2×0.5 = 0.60 + 0.10 = 0.70
+
+  For Competitor wine:
+    similarity = 0.70
+    likes = 50, dislikes = 10  → fbScore = 40
+    maxDiff = 40               → normFb = 40 / 40 = 1.0
+    finalScore = 0.8×0.70 + 0.2×1.0 = 0.56 + 0.20 = 0.76
+
+  → Competitor (0.76) outranks Chardonnay (0.70)

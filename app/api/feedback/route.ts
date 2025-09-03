@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { neon } from '@neondatabase/serverless'
+import { randomUUID } from 'crypto'
 
 const sql = neon(process.env.NEON_DATABASE_URL!)
 
@@ -43,17 +44,36 @@ export async function GET(req: Request) {
 export async function POST(request: Request) {
   try {
     const data = await request.json()
-
-    if (!data.userId || !data.wineId || !data.feedback) {
-      return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
+    // Required fields for counts: userId, wineId/sku, and feedback type
+    const userId = data.userId
+    const wineId = data.sku ?? data.wineId
+    const feedbackType = data.feedback
+    if (!userId || !wineId || !feedbackType) {
+      return NextResponse.json({ error: 'Missing required fields: userId, wineId, or feedback' }, { status: 400 })
     }
-
+    if (feedbackType !== 'like' && feedbackType !== 'dislike') {
+      return NextResponse.json({ error: 'Invalid feedback value' }, { status: 400 })
+    }
+    // Generate unique session ID
+    const queryId = randomUUID()
+    // 1) insert into feedback counts table
     await sql`
       INSERT INTO feedback (user_id, wine_id, feedback, timestamp)
-      VALUES (${data.userId}, ${data.wineId}::text, ${data.feedback}, NOW())
+      VALUES (${userId}, ${wineId}::text, ${feedbackType}, NOW())
     `
-
-    return NextResponse.json({ ok: true })
+    // 2) optionally record the user’s question text and language in feedback_all
+    const question = data.question ?? data.q ?? ''
+    if (question) {
+      const positive = feedbackType === 'like' ? question : ''
+      const negative = feedbackType === 'dislike' ? question : ''
+      // Capture language, default to 'en' if not provided
+      const lang = data.language ?? 'en'
+      await sql`
+        INSERT INTO feedback_all (query_id, wine_id, positive, negative, timestamp, language)
+        VALUES (${queryId}, ${wineId}::text, ${positive}, ${negative}, NOW(), ${lang})
+      `
+    }
+    return NextResponse.json({ ok: true, queryId })
   } catch (err) {
     console.error('Feedback POST error:', err)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })

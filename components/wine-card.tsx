@@ -11,9 +11,11 @@ interface WineCardProps {
   // Wine may include optional ranking scores when used for recommendations
   wine: Wine & { similarity?: number; feedbackScore?: number; finalScore?: number }
   language: Language
+  // The question text the user asked (e.g. "recommend red wines")
+  question?: string
 }
 
-export function WineCard({ wine, language }: WineCardProps) {
+export function WineCard({ wine, language, question }: WineCardProps) {
   const [isPopupOpen, setIsPopupOpen] = useState(false)
   const [feedback, setFeedback] = useState<FeedbackType | null>(null)
 
@@ -26,7 +28,8 @@ export function WineCard({ wine, language }: WineCardProps) {
   // }
 
   // Extract optional ranking score
-  const finalScore = wine.finalScore
+  const finalScore = wine.finalScore;
+  // question may be undefined if not provided
   return (
     <>
       <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
@@ -77,27 +80,47 @@ export function WineCard({ wine, language }: WineCardProps) {
               </button>
               {/* Feedback buttons below Details */}
               <div className="flex gap-2 mt-1">
+                { /* Like button */ }
                 <button
                   disabled={!!feedback}
                   onClick={async () => {
                     setFeedback('like')
-                    await sendFeedback(wine.id, 'like')
+                    await sendFeedback(wine.id, 'like', question, language)
                   }}
                   aria-label="Like"
-                  className="inline-flex items-center justify-center bg-green-100 text-green-800 p-2 rounded hover:bg-green-200 disabled:opacity-50"
+                  className={
+                    `inline-flex items-center justify-center p-2 rounded transition-colors ` +
+                    (feedback === 'like'
+                      ? 'bg-green-600 text-white hover:bg-green-700'
+                      : 'bg-green-100 text-green-800 hover:bg-green-200') +
+                    (feedback && feedback !== 'like' ? ' opacity-50' : '')
+                  }
                 >
-                  <ThumbsUp className="w-5 h-5 text-yellow-400" />
+                  <ThumbsUp className={
+                    `w-5 h-5 ` +
+                    (feedback === 'like' ? 'text-white' : 'text-yellow-400')
+                  } />
                 </button>
+                { /* Dislike button */ }
                 <button
                   disabled={!!feedback}
                   onClick={async () => {
                     setFeedback('dislike')
-                    await sendFeedback(wine.id, 'dislike')
+                    await sendFeedback(wine.id, 'dislike', question, language)
                   }}
                   aria-label="Dislike"
-                  className="inline-flex items-center justify-center bg-gray-100 text-gray-800 p-2 rounded hover:bg-gray-200 disabled:opacity-50"
+                  className={
+                    `inline-flex items-center justify-center p-2 rounded transition-colors ` +
+                    (feedback === 'dislike'
+                      ? 'bg-red-600 text-white hover:bg-red-700'
+                      : 'bg-gray-100 text-gray-800 hover:bg-gray-200') +
+                    (feedback && feedback !== 'dislike' ? ' opacity-50' : '')
+                  }
                 >
-                  <ThumbsDown className="w-5 h-5 text-yellow-400" />
+                  <ThumbsDown className={
+                    `w-5 h-5 ` +
+                    (feedback === 'dislike' ? 'text-white' : 'text-yellow-400')
+                  } />
                 </button>
               </div>
             </div>

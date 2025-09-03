@@ -17,13 +17,21 @@ export type FeedbackType = 'like' | 'dislike'
 
 export async function sendFeedback(
   wineId: string | number,
-  feedback: FeedbackType
+  feedback: FeedbackType,
+  question?: string,
+  language?: string
 ): Promise<void> {
-  const payload = {
+  const payload: Record<string, any> = {
     userId: getUserId(),
     wineId,
     feedback,
     timestamp: new Date().toISOString(),
+  }
+  if (question) {
+    payload.question = question
+  }
+  if (language) {
+    payload.language = language
   }
   try {
     await fetch('/api/feedback', {

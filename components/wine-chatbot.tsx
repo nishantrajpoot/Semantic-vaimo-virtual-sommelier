@@ -403,7 +403,7 @@ export function WineChatbot({ isOpen, onClose, onLanguageChange }: WineChatbotPr
           {recs.map((wine, idx) => (
             <div key={`${wine.id}-${offset + idx}`} className="space-y-1">
               <div className="text-xs font-semibold text-gray-700">{offset + idx + 1}.</div>
-              <WineCard wine={wine} language={language} />
+              <WineCard wine={wine} language={language} question={lastQuery} />
             </div>
           ))}
         </div>
