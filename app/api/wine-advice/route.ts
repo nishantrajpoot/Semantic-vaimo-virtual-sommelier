@@ -9,33 +9,94 @@ function parsePrice(priceStr: string): number {
   const num = priceStr.replace(/[^0-9,.-]/g, '').replace(',', '.')
   return parseFloat(num) || 0
 }
+// Normalize various language color strings to English keys
+function normalizeColorRaw(raw?: string): string {
+  if (!raw) return ''
+  const c = raw.toLowerCase().trim()
+  if (['blanc', 'white'].includes(c)) return 'white'
+  if (['rouge', 'red'].includes(c)) return 'red'
+  if (['rosé', 'rose', 'ros'].includes(c)) return 'rose'
+  if (['mousseux', 'champagne', 'sparkling'].includes(c)) return 'sparkling'
+  return c
+}
+// Normalize pairing strings to simple English keys
+function normalizePairingRaw(raw: string): string {
+  const p = raw.toLowerCase().trim()
+  if (p === 'fruits de mer' || p === 'poisson') return 'seafood'
+  return p
+}
 
 export async function POST(request: NextRequest) {
   try {
     const { message, language, wines, excludeIds, history } = await request.json()
     // Initialize timing tracker for pipeline steps
     const timings: { step: string; duration: number }[] = []
-    // Retrieval Augmented Generation: semantic search to pre-filter dataset
+    // Step 1: Use LLM to extract structured filters and pre-filter dataset
     let candidates: Wine[] = wines
     if (process.env.OPENAI_API_KEY) {
-      // Time the semantic search step
       const t0 = Date.now()
       try {
-        const url = new URL(request.url)
-        
-        url.pathname = '/api/wines'
-        url.searchParams.set('lang', language)
-        url.searchParams.set('q', message)
-        const resp = await fetch(url.toString(), { method: 'GET' })
-        if (resp.ok) {         
-          candidates = await resp.json()
-        } else {
-          console.warn('Semantic search failed:', resp.status)
+        const filterPrompt = `You are an assistant that extracts structured filters from a user wine request. Respond with a JSON object containing any of these keys if present: ` +
+          `"colors" (array of strings), "minPrice" (number), "maxPrice" (number), ` +
+          `"alcohol" ("yes" or "no"), "grapes" (array of grape varieties), ` +
+          `"food_pairings" (array of foods), "discount" ("yes" or "no"). ` +
+          `Example: {"colors":["white"],"minPrice":10,"maxPrice":20,"alcohol":"yes",` +
+          `"grapes":["chardonnay"],"food_pairings":["seafood"],"discount":"yes"}. ` +
+          `User request: "${message}"`
+        const { text: filterText } = await generateText({
+          model: openai("gpt-3.5-turbo"),
+          system: filterPrompt,
+          prompt: "",
+          maxTokens: 200,
+        })
+        let filters: any = {}
+        try {
+          filters = JSON.parse(filterText)
+        } catch (e) {
+          console.warn("Failed to parse filters JSON:", filterText)
         }
+        // Prepare normalized filter arrays
+        const colorFilters: string[] = filters.colors?.map((c: string) => c.toLowerCase()) || []
+        const grapeFilters: string[] = filters.grapes?.map((g: string) => g.toLowerCase()) || []
+        const pairingFilters: string[] = filters.food_pairings?.map((p: string) => normalizePairingRaw(p)) || []
+        // Determine discount filter flag
+        const discountYes = filters.discount === "yes" || filters.discount === true
+        candidates = wines.filter(w => {
+          let ok = true
+          const wineColor = normalizeColorRaw(w.Color)
+          const wineGrapes = w.Wine_Varieties?.toLowerCase() || ''
+          const winePairings = (w.food_pairing || []).map(p => normalizePairingRaw(p))
+          if (colorFilters.length) {
+            ok = ok && colorFilters.includes(wineColor)
+          }
+          if (filters.minPrice !== undefined) {
+            ok = ok && parsePrice(w.Price) >= filters.minPrice
+          }
+          if (filters.maxPrice !== undefined) {
+            ok = ok && parsePrice(w.Price) <= filters.maxPrice
+          }
+          if (filters.alcohol === "yes") {
+            ok = ok && parseFloat(w.Alcohol_percentage || "") > 0
+          }
+          if (filters.alcohol === "no") {
+            const pct = parseFloat(w.Alcohol_percentage || "")
+            ok = ok && (isNaN(pct) || pct === 0)
+          }
+          if (grapeFilters.length) {
+            ok = ok && grapeFilters.some(g => wineGrapes.includes(g))
+          }
+          if (pairingFilters.length) {
+            ok = ok && pairingFilters.every(p => winePairings.includes(p))
+          }
+          if (discountYes) {
+            ok = ok && Boolean(w.promotion && w.promotion.trim() !== "")
+          }
+          return ok
+        })
       } catch (err) {
-        console.error('Semantic search error:', err)
+        console.error("Semantic filter extraction failed:", err)
       } finally {
-        timings.push({ step: 'semantic_search', duration: Date.now() - t0 })
+        timings.push({ step: "semantic_search", duration: Date.now() - t0 })
       }
     }
     // Exclude previously shown recommendations
@@ -120,7 +181,11 @@ Respond with wine advice and explain your recommendations.`
       const t2 = Date.now()
       const recommendations = extractRecommendationsFromResponse(text, dataset)
       timings.push({ step: 'parse_response', duration: Date.now() - t2 })
-      const recs = recommendations.length > 0 ? recommendations : getSimpleFallback(message, dataset)
+      // Determine initial recommendations (AI or fallback)
+      let recs = recommendations.length > 0
+        ? recommendations
+        : getSimpleFallback(message, dataset)
+      // Return final recommendations aligned with IDs parsed from the AI response
       return NextResponse.json({
         message: text,
         recommendations: recs,

@@ -124,44 +124,63 @@ export async function GET(request: Request) {
 
       // First-stage: take top 50 by similarity
       const top50 = scored.slice(0, 50)
-      // Load aggregated feedback from database and build map
-      const fbRows = await sql`
+      // Load aggregated feedback from database (likes, dislikes, summaries)
+      const fbAggRows = await sql`
         SELECT wine_id AS "wineId",
-               COUNT(*) FILTER (WHERE feedback = 'like') AS likes,
-               COUNT(*) FILTER (WHERE feedback = 'dislike') AS dislikes
-        FROM feedback
-        GROUP BY wine_id
+               total_likes    AS likes,
+               total_dislikes AS dislikes,
+               positive_summary AS posSum,
+               negative_summary AS negSum
+        FROM feedback_aggregated
       `
-      const fbMap = new Map<string, { likes: number; dislikes: number }>()
-      let maxDiff = 0
-      fbRows.forEach(f => {
-        const likes = Number(f.likes)
-        const dislikes = Number(f.dislikes)
-        fbMap.set(f.wineId, { likes, dislikes })
-        const diff = Math.abs(likes - dislikes)
-        if (diff > maxDiff) maxDiff = diff
+      const fbAggMap = new Map<string, { likes: number; dislikes: number; posSum: string; negSum: string }> ()
+      fbAggRows.forEach(f => {
+        fbAggMap.set(f.wineId, {
+          likes:    Number(f.likes)    || 0,
+          dislikes: Number(f.dislikes) || 0,
+          posSum:   f.posSum   || '',
+          negSum:   f.negSum   || ''
+        })
       })
-      // Rerank with feedback signals: finalScore = alpha*sim + beta*normFb
-      const alpha = parseFloat(process.env.RE_RANK_ALPHA || '0.8')
-      const beta = parseFloat(process.env.RE_RANK_BETA || '0.2')
+      // Weights and smoothing parameters
+      const alpha = parseFloat(process.env.RE_RANK_ALPHA           || '0.8')  // similarity weight
+      const beta  = parseFloat(process.env.RE_RANK_BETA            || '0.2')  // feedback weight
+      const smoothing     = parseFloat(process.env.RE_RANK_SMOOTHING     || '5')    // for ratios
+      const summaryWeight = parseFloat(process.env.RE_RANK_SUMMARY_WEIGHT || '0.3')  // weight of summary tone in feedback
+      const likeWeight    = 1 - summaryWeight
+      // Rerank with composite feedback
       const reranked = top50.map(item => {
-        const fb = fbMap.get(item.wine.id) || { likes: 0, dislikes: 0 }
-        const fbScore = fb.likes - fb.dislikes
-        const normFb = maxDiff > 0 ? fbScore / maxDiff : 0
+        const agg = fbAggMap.get(item.wine.id) || { likes: 0, dislikes: 0, posSum: '', negSum: '' }
+        const { likes, dislikes, posSum, negSum } = agg
+        // Normalized like ratio R in [0,1] using Laplace (additive) smoothing
+        // Bayesian estimate: (likes + smoothing) / (likes + dislikes + 2 * smoothing)
+        const R = (likes + smoothing) / (likes + dislikes + 2 * smoothing)
+        // Sentiment from summaries S in [-1,1]
+        let S = 0
+        const posLen = posSum ? posSum.split(/\s+/).length : 0
+        const negLen = negSum ? negSum.split(/\s+/).length : 0
+        if (posLen + negLen > 0) {
+          S = (posLen - negLen) / (posLen + negLen + smoothing)
+          S = Math.max(-1, Math.min(1, S))
+        }
+        // Composite feedback score F in [0,1]
+        const F = likeWeight * R + summaryWeight * ((S + 1) / 2)
         return {
           wine: item.wine,
-          similarity: item.score,
-          feedbackScore: fbScore,
-          finalScore: alpha * item.score + beta * normFb,
+          similarity:     item.score,
+          feedbackRatio:  R,
+          feedbackSentiment: S,
+          feedbackComposite: F,
+          finalScore: alpha * item.score + beta * F,
         }
       })
       reranked.sort((a, b) => b.finalScore - a.finalScore)
       // Return top 15 after reranking
       wines = reranked.slice(0, 15).map(item => ({
         ...item.wine,
-        similarity: item.similarity,
-        feedbackScore: item.feedbackScore,
-        finalScore: item.finalScore,
+        similarity:        item.similarity,
+        feedbackComposite: item.feedbackComposite,
+        finalScore:        item.finalScore,
       }))
     } else {
       // Keyword fallback

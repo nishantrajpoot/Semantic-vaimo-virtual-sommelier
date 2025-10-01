@@ -1,0 +1,53 @@
+Delhaize AI Wine Sommelier
+
+A multilingual, AI-powered web app (and optional browser extension) that helps users discover, understand, and shop for Delhaize’s wine selection.
+
+Core Functionality
+- Chatbot interface where users ask for recommendations, food pairings, or general wine advice.
+- AI (OpenAI GPT-4/O) interprets natural-language queries—handling typos, budget constraints, or style preferences—and returns 7–8 specific wines from Delhaize’s catalog, along with explanations.
+- Re-ranking logic combines semantic similarity (α) and real user feedback (β) to surface the best matches.
+
+Tech Stack
+- Next.js 13 (App Router) + TypeScript + Tailwind CSS
+- Serverless API routes under /app/api/... for scraping, advice, wine lookup, and feedback ingestion/aggregation
+- React components for the chat widget, wine cards/popups, and a persistent “smart cart” (using a custom use-cart hook with localStorage).
+- Neondatabase (PostgreSQL) for storing raw feedback, aggregated counts, and AI-generated positive/negative summaries.
+
+Data & Integration
+- A synthetic 10K-item wine JSON powers offline browsing and prompt context.
+- On-demand scraper fetches live Delhaize listings.
+- Feedback loop: user clicks “like”/“dislike” → record their query text as positive/negative → periodic aggregation job calls OpenAI to summarize why users liked/disliked each bottle → summaries and counts feed back into the ranking formula.
+
+Multilingual Support
+- All prompts, fallbacks, and UI labels are available in English, French, and Dutch.
+- The system prompt and feedback summaries adapt to the selected language.
+
+Extensions & UX
+- A standalone browser extension can inject the chat widget directly onto Delhaize’s site.
+- Smart Cart lets you collect recommendations and generate “Add to Cart” links or a shopping list.
+
+This architecture ensures a tight feedback-driven loop: AI generates suggestions, users react, and we learn from their interactions to continually refine future recommendations.
+
+Feedback Loop & Scoring Formula
+- We combine two signals to rank wines:
+  - Semantic Similarity (α): the cosine similarity between the user’s query embedding and a wine’s description embedding (normalized to 0–1).
+  - User Feedback (β): a composite score derived from aggregated like/dislike counts and AI-generated feedback summaries.
+
+- Feedback subcomponents:
+  - Count Score:
+      (total_likes + RE_RANK_SMOOTHING) \
+      / (total_likes + total_dislikes + 2 × RE_RANK_SMOOTHING)
+  - Summary Sentiment Score:
+      normalized difference between positive_summary and negative_summary sentiment scores, mapped to 0–1
+  - Composite Feedback Score:
+      (1 − RE_RANK_SUMMARY_WEIGHT) × Count Score
+      + RE_RANK_SUMMARY_WEIGHT × Summary Sentiment Score
+
+- Final Ranking Score:
+    FINAL_SCORE = RE_RANK_ALPHA × Semantic Similarity + RE_RANK_BETA × Composite Feedback Score
+
+- Environment variables:
+  - RE_RANK_ALPHA (α): weight for similarity (default 0.8)
+  - RE_RANK_BETA (β): weight for feedback (default 0.2)
+  - RE_RANK_SMOOTHING: smoothing constant for counts (default 5)
+  - RE_RANK_SUMMARY_WEIGHT: weight for summary sentiment in feedback (default 0.3)

@@ -20,6 +20,12 @@ export interface Wine {
   Color: string
   Type_of_Box: string
   Vintage: string | null
+  /** Optional similarity score from semantic search (0 to 1) */
+  similarity?: number
+  /** Composite feedback score combining likes/dislikes and sentiment (0 to 1) */
+  feedbackComposite?: number
+  /** Final score: weighted combination of similarity and feedbackComposite */
+  finalScore?: number
 }
 
 export interface ChatMessage {

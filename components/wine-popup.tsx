@@ -120,6 +120,29 @@ export function WinePopup({ wine, language, isOpen, onClose }: WinePopupProps) {
                 </div>
               )}
             </div>
+            {/* Rating Explanation */}
+            {wine.finalScore != null && (
+              <div className="mt-2 px-2 text-xs text-gray-800 rating-explanation">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">{getTranslation(language, "rating") || 'Rating'}</span>
+                  <span className="font-semibold">{wine.finalScore.toFixed(2)}</span>
+                </div>
+                <details className="mt-1 text-gray-700">
+                  <summary className="cursor-pointer text-gray-500">{getTranslation(language, "showBreakdown") || 'Show breakdown'}</summary>
+                  {wine.similarity != null && wine.feedbackComposite != null ? (
+                    <div className="mt-1 space-y-1">
+                      <div>{`${(0.8 * wine.similarity).toFixed(2)} = 0.8 × similarity (${wine.similarity.toFixed(2)})`}</div>
+                      <div>{`${(0.2 * wine.feedbackComposite).toFixed(2)} = 0.2 × feedback (${wine.feedbackComposite.toFixed(2)})`}</div>
+                      <div>{`${getTranslation(language, "feedbackEffect") || 'Feedback effect'}: ${(0.2 * wine.feedbackComposite).toFixed(2)}`}</div>
+                    </div>
+                  ) : (
+                    <div className="mt-1 text-xs text-gray-600">
+                      {getTranslation(language, "noFeedbackEffect") || 'No feedback yet; rating based solely on similarity.'}
+                    </div>
+                  )}
+                </details>
+              </div>
+            )}
             {/* Description */}
             {wine.Wine_Description && (
               <div className="">

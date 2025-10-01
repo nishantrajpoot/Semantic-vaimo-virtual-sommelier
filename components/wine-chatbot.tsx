@@ -84,7 +84,7 @@ export function WineChatbot({ isOpen, onClose, onLanguageChange }: WineChatbotPr
         role: "assistant",
         content: "SHOW_MORE",
         timestamp: new Date(),
-      }
+      };
       setMessages((prev) => [...prev, showMoreMsg])
     }
   }
@@ -294,13 +294,13 @@ export function WineChatbot({ isOpen, onClose, onLanguageChange }: WineChatbotPr
       if (!cleanText) {
         cleanText = getTranslation(language, 'recommendations')
       }
-      // Parse numbered comment lines
+      // Parse numbered comment lines for wine names
       const commentLines = cleanText
         .split(/\r?\n/)
         .filter((l) => /^\s*\d+\./.test(l))
         .map((l) => l.replace(/^\s*\d+\.\s*/, '').trim())
-      // Store comments aligned with recs
       setRecComments(commentLines)
+      // AI text bubble
       const assistantMessage: ChatMessage = {
         id: generateId(),
         role: "assistant",
@@ -323,62 +323,58 @@ export function WineChatbot({ isOpen, onClose, onLanguageChange }: WineChatbotPr
           role: 'assistant',
           content: `TIMINGS:\n${lines.join('\n')}`,
           timestamp: new Date(),
-        }
+        };
         setMessages((prev) => [...prev, timingMessage])
       }
-      // Recommendations and food pairing based on recommendations
-      if (result.recommendations && result.recommendations.length > 0) {
-        console.log('inside recommendations', result.recommendations)
-        // Use only AI-recommended wines without padding
-        const recs = result.recommendations as WineType[]
-        const fullRecs = [...recs]
-        setLastRecs(fullRecs)
-        // Derive food pairings from recommended wines
-        const allPairs = recs.flatMap((w) => w.food_pairing || [])
-        const uniquePairs = Array.from(new Set(allPairs)).slice(0, 4)
-        if (uniquePairs.length > 0) {
+      // Map recommendations: attempt numeric-text match first, fallback to AI-provided array
+      let fullRecs: WineType[] = []
+      const apiRecs = (result.recommendations as WineType[]) || []
+      // If the AI printed a numbered list, map commentLines to actual Wine objects
+      if (commentLines.length > apiRecs.length) {
+        const mapped = commentLines
+          .map(nameLine =>
+            (wineData[language] as WineType[]).find(w =>
+              w.Product_name?.toLowerCase().includes(nameLine.toLowerCase())
+            )
+          )
+          .filter((w): w is WineType => Boolean(w))
+        fullRecs = mapped.length > 0 ? mapped : apiRecs
+      } else {
+        fullRecs = apiRecs
+      }
+      setLastRecs(fullRecs)
+      // Derive food pairings suggestions
+      const allPairs = fullRecs.flatMap(w => w.food_pairing || [])
+      const uniquePairs = Array.from(new Set(allPairs)).slice(0, 4)
+      if (uniquePairs.length > 0) {
         const pairingMessage: ChatMessage = {
-            id: generateId(),
-            role: "assistant",
-            content: `FOOD_SUGGESTIONS:${uniquePairs.join("|")}`,
-            timestamp: new Date(),
-          }
-          setMessages((prev) => [...prev, pairingMessage])
-        }
-        console.log('fullRecs', allPairs)
-        // Show first 4 recommendation cards (from padded full list)
-        const initialRecs = fullRecs.slice(0, 4)
-        const recommendationsMessage: ChatMessage = {
           id: generateId(),
           role: "assistant",
-          content: "WINE_RECOMMENDATIONS",
+          content: `FOOD_SUGGESTIONS:${uniquePairs.join("|")}`,
           timestamp: new Date(),
-          recommendations: initialRecs,
-          startIndex: 0,
-        }
-        setMessages((prev) => [...prev, recommendationsMessage])
-        // Record shown IDs
-        setShownIds(initialRecs.map((w) => w.id))
-        // Add "Show more" button if more available in fullRec list
-        if (fullRecs.length > initialRecs.length) {
-          const showMoreMessage: ChatMessage = {
-            id: generateId(),
-            role: "assistant",
-            content: "SHOW_MORE",
-            timestamp: new Date(),
-          }
-          setMessages((prev) => [...prev, showMoreMessage])
-        }
+        };
+        setMessages(prev => [...prev, pairingMessage])
+      }
+      // Display all cards
+      const recommendationsMessage: ChatMessage = {
+        id: generateId(),
+        role: "assistant",
+        content: "WINE_RECOMMENDATIONS",
+        timestamp: new Date(),
+        recommendations: fullRecs,
+        startIndex: 0,
+      };
+      setMessages(prev => [...prev, recommendationsMessage])
+      setShownIds(fullRecs.map(w => w.id))
         // Cache this response for identical future queries
         if (isClient) {
           try {
             localStorage.setItem(
               `sommelier_cache_${userQuery.toLowerCase()}`,
               JSON.stringify({ assistantText: cleanText, recommendations: fullRecs })
-            )
-          } catch {}
+            );
+          } catch (e) {}
         }
-      }
     } catch (error) {
       console.error("Error getting wine advice:", error)
       const errorMessage: ChatMessage = {
@@ -386,7 +382,7 @@ export function WineChatbot({ isOpen, onClose, onLanguageChange }: WineChatbotPr
         role: "assistant",
         content: "Sorry, I encountered an error. Please try again.",
         timestamp: new Date(),
-      }
+      };
       setMessages((prev) => [...prev, errorMessage])
     } finally {
       setIsLoading(false)

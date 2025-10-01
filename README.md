@@ -53,7 +53,11 @@ A virtual wine sommelier with AI-powered recommendations, food pairings, and exp
 
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `OPENAI_API_KEY` | Your OpenAI API key for AI-powered responses | Yes |
+| `OPENAI_API_KEY`       | Your OpenAI API key for AI-powered responses                 | Yes |
+| `RE_RANK_ALPHA`        | Similarity weight (α) in final scoring; default `0.8`         | No  |
+| `RE_RANK_BETA`         | Feedback weight (β) in final scoring; default `0.2`           | No  |
+| `RE_RANK_SMOOTHING`    | Smoothing constant for like/dislike and sentiment ratios; default `5` | No |
+| `RE_RANK_SUMMARY_WEIGHT` | Weight of summary sentiment in feedback composite; default `0.3` | No |
 
 ### Getting an OpenAI API Key
 

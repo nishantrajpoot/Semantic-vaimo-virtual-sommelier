@@ -29,6 +29,8 @@ export async function sendFeedback(
   }
   if (question) {
     payload.question = question
+    // include question context as summary for feedback
+    payload.context = question
   }
   if (language) {
     payload.language = language

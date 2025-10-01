@@ -1,0 +1,32 @@
+How We Use positive_summary and negative_summary
+
+We treat the summary fields as a lightweight sentiment signal:
+
+1. Word-Count Extraction
+   - posLen = number of words in positive_summary
+   - negLen = number of words in negative_summary
+   Example:
+     const posLen = posSum ? posSum.split(/\s+/).length : 0
+     const negLen = negSum ? negSum.split(/\s+/).length : 0
+
+2. Raw Sentiment Score (S_raw)
+   - If posLen + negLen > 0:
+       S_raw = (posLen - negLen) / (posLen + negLen + smoothing)
+       S = clamp(S_raw, -1, +1)
+     Else:
+       S = 0
+   - Positive-heavy summaries → S near +1
+   - Negative-heavy summaries → S near -1
+
+3. Mapping to [0,1]
+   - sentimentFraction = (S + 1) / 2
+   - Purely positive summary → 1.0
+   - Purely negative summary → 0.0
+   - Balanced or no summary → ~0.5 or 0
+
+4. Composite Feedback Score (F)
+   - F = likeWeight * R + summaryWeight * sentimentFraction
+   - R = smoothed like ratio (0 to 1)
+   - summaryWeight (default 0.3) controls how much text sentiment contributes
+
+This composite F then blends with semantic similarity to produce the final ranking score.

@@ -61,11 +61,11 @@ export async function POST(request: Request) {
       INSERT INTO feedback (user_id, wine_id, feedback, timestamp)
       VALUES (${userId}, ${wineId}::text, ${feedbackType}, NOW())
     `
-    // 2) optionally record the user’s question text and language in feedback_all
-    const question = data.question ?? data.q ?? ''
-    if (question) {
-      const positive = feedbackType === 'like' ? question : ''
-      const negative = feedbackType === 'dislike' ? question : ''
+    // 2) optionally record the user’s question summary (context) and language in feedback_all
+    const summary = data.context ?? data.question ?? data.q ?? ''
+    if (summary) {
+      const positive = feedbackType === 'like' ? summary : ''
+      const negative = feedbackType === 'dislike' ? summary : ''
       // Capture language, default to 'en' if not provided
       const lang = data.language ?? 'en'
       await sql`

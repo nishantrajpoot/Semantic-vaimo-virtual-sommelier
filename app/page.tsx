@@ -27,12 +27,6 @@ export default function Home() {
 
   return (
     <div className="relative h-screen w-screen overflow-auto">
-      {/* Full-page screenshot as scrollable image */}
-      <img
-        src="/delhaize-bg.png"
-        alt="Delhaize wine listings"
-        className="block w-full transform scale-98 origin-center"
-      />
       {/* Cart Indicator positioned top-right */}
       <div className="absolute top-4 right-4 z-20">
         <CartIndicator language={language} />

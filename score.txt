@@ -1,0 +1,65 @@
+Calculation of Recommendation Score
+
+1. Compute Text Embeddings:
+   - Use OpenAI Embeddings API to generate embeddings for each wine:
+     - For each wine, embed the concatenation of Product_name, Wine_Description, and Wine_Varieties.
+   - Embed the user query string similarly to get a query embedding (qEmbed).
+
+2. Compute Similarity Scores:
+   - For each wine embedding, calculate cosine similarity with qEmbed:
+     similarity = dot(qEmbed, wineEmbedding) / (||qEmbed|| * ||wineEmbedding||)
+   - Resulting similarity is in [-1,1], but non-negative in practice.
+
+3. First-Stage Ranking:
+   - Sort wines by similarity descending.
+   - Select the top 50 wines (highest similarity).
+
+4. Load Aggregated Feedback:
+   - Fetch for each wine its:
+     • likes (total_likes)
+     • dislikes (total_dislikes)
+     • positive_summary (concatenated positive feedback summary)
+     • negative_summary (concatenated negative feedback summary)
+
+5. Define Re-Ranking Parameters:
+   - alpha: similarity weight (default 0.8)
+   - beta: feedback weight (default 0.2)
+   - smoothing: pseudocount for ratios (default 5)
+   - summaryWeight: weight of sentiment summary in feedback (default 0.3)
+   - likeWeight: = 1 − summaryWeight (default 0.7)
+
+6. Compute Feedback Scores for Each Wine:
+  a. Normalized Like Ratio (R) with Laplace smoothing:
+     R = (likes + smoothing) / (likes + dislikes + 2 × smoothing)
+     • Bayesian estimate in [0,1], adds pseudo-counts to numerator and denominator.
+   b. Sentiment Score from Summaries (S):
+      - posLen = word count of positive_summary
+      - negLen = word count of negative_summary
+      - If posLen + negLen > 0:
+          S_raw = (posLen − negLen) / (posLen + negLen + smoothing)
+          S = clamp(S_raw, −1, 1)
+        Else:
+          S = 0
+      • Maps sentiment to [−1,1].
+   c. Composite Feedback Score (F):
+      F = likeWeight × R + summaryWeight × ((S + 1) / 2)
+      • Maps combined feedback to [0,1].
+
+7. Compute Final Combined Score:
+   finalScore = alpha × similarity + beta × F
+   • Weighted sum of semantic similarity and feedback composite.
+
+8. Second-Stage Ranking:
+   - Sort the top 50 wines by finalScore descending.
+   - Select the top 15 wines for the final recommendations.
+
+9. Output:
+   - Each recommended wine includes:
+     • similarity (semantic score)
+     • feedbackComposite (F)
+     • finalScore (combined score used for ranking)
+
+Notes:
+- If there is no API key or feedback data, the system falls back to keyword filtering without scoring.
+- Weight and smoothing parameters are configurable via environment variables:
+  RE_RANK_ALPHA, RE_RANK_BETA, RE_RANK_SMOOTHING, RE_RANK_SUMMARY_WEIGHT.

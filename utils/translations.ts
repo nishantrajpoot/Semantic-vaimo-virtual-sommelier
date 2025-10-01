@@ -2,6 +2,10 @@ import type { Language } from "@/types/wine"
 
 export const translations = {
   en: {
+    rating: "Rating",
+    showBreakdown: "Show breakdown",
+    feedbackEffect: "Feedback effect",
+    noFeedbackEffect: "No feedback yet; rating based solely on similarity.",
     title: "Wine Sommelier",
     placeholder: "Ask me about wine recommendations, food pairings, or wine advice...",
     send: "Send",
@@ -106,6 +110,10 @@ export const translations = {
       rose: "Rosé",
       sparkling: "Effervescent",
     },
+    rating: "Notation",
+    showBreakdown: "Voir la répartition",
+    feedbackEffect: "Effet du feedback",
+    noFeedbackEffect: "Pas de retours pour le moment ; note basée uniquement sur la similarité.",
   },
   nl: {
     title: "Wijn Sommelier",
@@ -158,6 +166,10 @@ export const translations = {
       rose: "Rosé",
       sparkling: "Mousserende",
     },
+    rating: "Beoordeling",
+    showBreakdown: "Toon uitsplitsing",
+    feedbackEffect: "Invloed van feedback",
+    noFeedbackEffect: "Nog geen feedback; beoordeling uitsluitend op gelijkenis gebaseerd.",
   },
 }
 

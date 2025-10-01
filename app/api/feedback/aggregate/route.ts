@@ -44,7 +44,11 @@ export async function POST(_: Request) {
     // helper to call OpenAI
     async function summarize(texts: string[], label: string) {
       if (texts.length === 0) return ''
-      const prompt = `Summarize these user ${label} requests into 2-3 concise sentences:\n${texts.join('\n')}`
+      // Build an instruction that focuses on reasons for like/dislike
+      const instruction = label === 'positive'
+        ? 'Summarize the following positive feedback by describing what was the question asked by the user.'
+        : 'Summarize the following negative feedback by describing what was the question asked by the user.'
+      const prompt = `${instruction}\n\nFeedback samples:\n- ${texts.join('\n- ')}`
       const res = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
